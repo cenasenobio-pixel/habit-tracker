@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | HabitFlow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+    <main class="auth-layout">
+        <section class="auth-visual register-visual">
+            <a class="brand brand-light" href="{{ url_for('register') }}">
+                <span class="brand-icon">H</span> HabitFlow
+            </a>
+
+            <div class="visual-content">
+                <span class="eyebrow">START SOMETHING GOOD</span>
+                <h1>Your future self<br>will thank you.</h1>
+                <p>Create a simple routine, track your progress, and turn small actions into lasting habits.</p>
+
+                <div class="quote-card">
+                    <span class="quote-mark">“</span>
+                    <p>Success is the sum of small efforts, repeated day in and day out.</p>
+                    <span class="quote-author">YOUR NEW BEGINNING</span>
+                </div>
+            </div>
+
+            <p class="visual-footer">ONE DAY AT A TIME · YOU'VE GOT THIS</p>
+        </section>
+
+        <section class="auth-form-side">
+            <div class="auth-form-wrap register-form-wrap">
+                <div class="mobile-brand brand">
+                    <span class="brand-icon">H</span> HabitFlow
+                </div>
+
+                <span class="eyebrow blue-text">GET STARTED</span>
+                <h2>Create your account</h2>
+                <p class="auth-subtitle">Join HabitFlow and start building better routines.</p>
+
+                {% if error %}
+                    <div class="alert">{{ error }}</div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('register') }}" class="auth-form">
+                    <label for="name">Full name</label>
+                    <input id="name" type="text" name="name"
+                           placeholder="Enter your name" autocomplete="name" required>
+
+                    <label for="email">Email address</label>
+                    <input id="email" type="email" name="email"
+                           placeholder="you@example.com" autocomplete="email" required>
+
+                    <label for="password">Password</label>
+                    <input id="password" type="password" name="password"
+                           placeholder="At least 6 characters"
+                           minlength="6" autocomplete="new-password" required>
+
+                    <button class="primary-button auth-button" type="submit">
+                        Create Account <span>→</span>
+                    </button>
+                </form>
+
+                <p class="auth-switch">
+                    Already have an account?
+                    <a href="{{ url_for('login') }}">Sign in</a>
+                </p>
+                <p class="form-note">Start small. Stay consistent. Keep growing.</p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
+

@@ -1,0 +1,364 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dashboard | HabitFlow</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
+    <script
+        src="{{ url_for('static', filename='script.js') }}"
+        defer
+    ></script>
+</head>
+
+<body class="dashboard-page">
+    <div class="dashboard-layout">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <a class="brand" href="{{ url_for('index') }}">
+                <span class="brand-icon">H</span>
+                HabitFlow
+            </a>
+
+            <p class="sidebar-label">MENU</p>
+
+            <nav class="sidebar-nav">
+                <a class="nav-item active" href="{{ url_for('index') }}">
+                    <span class="nav-symbol">▦</span>
+                    Dashboard
+                </a>
+
+                <a class="nav-item" href="#calendar">
+                    <span class="nav-symbol">▦</span>
+                    Habit Calendar
+                </a>
+
+                <a class="nav-item" href="#habits">
+                    <span class="nav-symbol">✓</span>
+                    My Habits
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-tip">
+                    <span class="tip-icon">✦</span>
+                    <strong>Keep going!</strong>
+                    <p>
+                        Every small step brings you closer
+                        to your goals.
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ url_for('logout') }}">
+                    <button class="logout-button" type="submit">
+                        <span>↪</span>
+                        Log out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- MAIN DASHBOARD -->
+        <main class="dashboard-main">
+
+            <!-- TOP BAR -->
+            <header class="topbar">
+                <div>
+                    <p class="breadcrumb">
+                        Workspace / <strong>Dashboard</strong>
+                    </p>
+
+                    <p class="topbar-subtitle">
+                        Your personal habit tracker
+                    </p>
+                </div>
+
+                <div class="user-chip">
+                    <div class="avatar">
+                        {{ session.get('name', 'U')[:1]|upper }}
+                    </div>
+
+                    <div class="user-details">
+                        <strong>{{ session.get('name', 'User') }}</strong>
+                        <small>Habit builder</small>
+                    </div>
+                </div>
+            </header>
+
+            <!-- WELCOME SECTION -->
+            <section class="welcome-section">
+                <div>
+                    <span class="eyebrow blue-text">
+                        YOUR DAILY SPACE
+                    </span>
+
+                    <h1>
+                        Good day, {{ session.get('name', 'there') }}!
+                        <span>✦</span>
+                    </h1>
+
+                    <p>
+                        Small consistent actions create meaningful
+                        change. Let's get started.
+                    </p>
+                </div>
+
+                <div class="welcome-decoration" aria-hidden="true">
+                    <div class="deco-circle deco-one"></div>
+                    <div class="deco-circle deco-two"></div>
+                    <span>✦</span>
+                </div>
+            </section>
+
+            <!-- STATISTICS -->
+            <section class="stats-grid">
+                <article class="stat-card">
+                    <div class="stat-icon blue-icon">✓</div>
+
+                    <p>Total habits</p>
+
+                    <h2 id="habit-count">0</h2>
+
+                    <small>Your habits in one place</small>
+                </article>
+
+                <article class="stat-card progress-stat">
+                    <div class="stat-icon green-icon">↗</div>
+
+                    <p>Today's progress</p>
+
+                    <h2 id="progress-percent">0%</h2>
+
+                    <div class="progress-track">
+                        <div
+                            id="progress-fill"
+                            class="progress-bar"
+                        ></div>
+                    </div>
+
+                    <small id="progress-note">
+                        Let's complete your first habit!
+                    </small>
+                </article>
+            </section>
+
+            <!-- HABIT CALENDAR -->
+            <section class="calendar-section" id="calendar">
+
+                <div class="section-heading">
+                    <div>
+                        <span class="eyebrow blue-text">
+                            YOUR PROGRESS
+                        </span>
+
+                        <h2>Habit Calendar</h2>
+
+                        <p>
+                            See the days you completed your habits.
+                        </p>
+                    </div>
+
+                    <span class="calendar-legend">
+                        <span class="legend-dot"></span>
+                        Completed
+                    </span>
+                </div>
+
+                <div class="calendar-card">
+
+                    <!-- MONTH NAVIGATION -->
+                    <div class="calendar-header">
+                        <button
+                            type="button"
+                            id="prev-month"
+                            class="calendar-arrow"
+                            aria-label="Previous month"
+                            title="Previous month"
+                        >
+                            &#8249;
+                        </button>
+
+                        <h3 id="calendar-month">
+                            Loading...
+                        </h3>
+
+                        <button
+                            type="button"
+                            id="next-month"
+                            class="calendar-arrow"
+                            aria-label="Next month"
+                            title="Next month"
+                        >
+                            &#8250;
+                        </button>
+                    </div>
+
+                    <!-- DAYS OF THE WEEK -->
+                    <div class="calendar-weekdays">
+                        <span>Mon</span>
+                        <span>Tue</span>
+                        <span>Wed</span>
+                        <span>Thu</span>
+                        <span>Fri</span>
+                        <span>Sat</span>
+                        <span>Sun</span>
+                    </div>
+
+                    <!-- JAVASCRIPT WILL GENERATE THE DATES HERE -->
+                    <div
+                        id="calendar-days"
+                        class="calendar-days"
+                    ></div>
+
+                    <!-- CALENDAR SUMMARY -->
+                    <p
+                        id="calendar-note"
+                        class="calendar-note"
+                        aria-live="polite"
+                    >
+                        Loading calendar...
+                    </p>
+
+                </div>
+            </section>
+
+            <!-- MY HABITS -->
+            <section class="habit-section" id="habits">
+
+                <div class="section-heading">
+                    <div>
+                        <h2>My Habits</h2>
+
+                        <p>
+                            Make today a little better than yesterday.
+                        </p>
+                    </div>
+
+                    <span class="today-pill" id="today-date">
+                        Today
+                    </span>
+                </div>
+
+                <!-- NOTIFICATION MESSAGE -->
+                <div
+                    id="message"
+                    class="message"
+                    role="status"
+                    aria-live="polite"
+                ></div>
+
+                <!-- ADD HABIT FORM -->
+                <form id="habit-form" class="add-habit-form">
+
+                    <div class="add-form-heading">
+                        <div class="add-icon">+</div>
+
+                        <div>
+                            <h3>Add a new habit</h3>
+
+                            <p>
+                                What would you like to do regularly?
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="add-form-fields">
+
+                        <div class="field-grow">
+                            <label for="habit-name">
+                                Habit name
+                            </label>
+
+                            <input
+                                id="habit-name"
+                                name="habit-name"
+                                type="text"
+                                placeholder="e.g. Read for 15 minutes"
+                                maxlength="120"
+                                required
+                            >
+                        </div>
+
+                        <div class="category-field">
+                            <label for="habit-category">
+                                Category
+                            </label>
+
+                            <select
+                                id="habit-category"
+                                name="habit-category"
+                            >
+                                <option value="Personal">
+                                    Personal
+                                </option>
+
+                                <option value="Health">
+                                    Health
+                                </option>
+
+                                <option value="Study">
+                                    Study
+                                </option>
+
+                                <option value="Fitness">
+                                    Fitness
+                                </option>
+
+                                <option value="Mindfulness">
+                                    Mindfulness
+                                </option>
+
+                                <option value="Other">
+                                    Other
+                                </option>
+                            </select>
+                        </div>
+
+                        <button
+                            id="add-button"
+                            class="primary-button add-button"
+                            type="submit"
+                        >
+                            + Add Habit
+                        </button>
+
+                    </div>
+                </form>
+
+                <!-- HABIT CARDS WILL APPEAR HERE -->
+                <div id="habit-list" class="habit-list"></div>
+
+                <!-- EMPTY STATE -->
+                <div id="empty-state" class="empty-state">
+                    <div class="empty-icon">✦</div>
+
+                    <h3>Your habit journey starts here</h3>
+
+                    <p>
+                        Add your first habit above and start
+                        making progress.
+                    </p>
+                </div>
+
+            </section>
+
+            <!-- FOOTER -->
+            <footer class="dashboard-footer">
+                Made for your growth
+                <span>♥</span>
+                One day at a time.
+            </footer>
+
+        </main>
+    </div>
+</body>
+</html>
+
