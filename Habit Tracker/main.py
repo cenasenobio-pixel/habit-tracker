@@ -5,9 +5,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from functools import wraps
 import sqlite3
+import os
 
 app = Flask(__name__)
-app.secret_key = "habitflow-local-secret-key-change-this"
+app.secret_key = os.environ["SECRET_KEY"]
 
 # Database file is saved beside main.py
 DATABASE = Path(__file__).resolve().parent / "habits.db"
