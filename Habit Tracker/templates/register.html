@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,67 +8,137 @@
 </head>
 <body class="auth-page">
     <main class="auth-layout">
-        <section class="auth-visual register-visual">
+        <section class="auth-visual">
             <a class="brand brand-light" href="{{ url_for('register') }}">
-                <span class="brand-icon">H</span> HabitFlow
+                <span class="brand-icon">≈</span> HabitFlow
             </a>
 
             <div class="visual-content">
-                <span class="eyebrow">START SOMETHING GOOD</span>
-                <h1>Your future self<br>will thank you.</h1>
-                <p>Create a simple routine, track your progress, and turn small actions into lasting habits.</p>
-
-                <div class="quote-card">
-                    <span class="quote-mark">“</span>
-                    <p>Success is the sum of small efforts, repeated day in and day out.</p>
-                    <span class="quote-author">YOUR NEW BEGINNING</span>
-                </div>
+                <h1>Small steps.<br>Lasting change.</h1>
+                <span class="auth-swoosh" aria-hidden="true"></span>
+                <img
+                    class="auth-illustration"
+                    src="{{ url_for('static', filename='auth-illustration.svg') }}"
+                    alt="Colorful abstract illustration about building healthy habits"
+                >
             </div>
-
-            <p class="visual-footer">ONE DAY AT A TIME · YOU'VE GOT THIS</p>
+            <span class="auth-sparkle sparkle-one" aria-hidden="true">✦</span>
+            <span class="auth-sparkle sparkle-two" aria-hidden="true">✦</span>
         </section>
 
         <section class="auth-form-side">
             <div class="auth-form-wrap register-form-wrap">
                 <div class="mobile-brand brand">
-                    <span class="brand-icon">H</span> HabitFlow
+                    <span class="brand-icon">≈</span> HabitFlow
                 </div>
 
-                <span class="eyebrow blue-text">GET STARTED</span>
-                <h2>Create your account</h2>
-                <p class="auth-subtitle">Join HabitFlow and start building better routines.</p>
+                <div class="auth-heading">
+                    <h2>Start your journey</h2>
+                    <p>Build better habits, one day at a time.</p>
+                    <span class="auth-swoosh" aria-hidden="true"></span>
+                </div>
 
                 {% if error %}
-                    <div class="alert">{{ error }}</div>
+                    <div class="alert" role="alert">{{ error }}</div>
                 {% endif %}
 
                 <form method="POST" action="{{ url_for('register') }}" class="auth-form">
                     <label for="name">Full name</label>
-                    <input id="name" type="text" name="name"
-                           placeholder="Enter your name" autocomplete="name" required>
+                    <div class="auth-input-wrap">
+                        <span aria-hidden="true">♙</span>
+                        <input
+                            id="name"
+                            type="text"
+                            name="name"
+                            placeholder="Enter your full name"
+                            autocomplete="name"
+                            required
+                        >
+                    </div>
 
                     <label for="email">Email address</label>
-                    <input id="email" type="email" name="email"
-                           placeholder="you@example.com" autocomplete="email" required>
+                    <div class="auth-input-wrap">
+                        <span aria-hidden="true">✉</span>
+                        <input
+                            id="email"
+                            type="email"
+                            name="email"
+                            placeholder="Enter your email address"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
 
                     <label for="password">Password</label>
-                    <input id="password" type="password" name="password"
-                           placeholder="At least 6 characters"
-                           minlength="6" autocomplete="new-password" required>
+                    <div class="auth-input-wrap">
+                        <span aria-hidden="true">♙</span>
+                        <input
+                            id="password"
+                            type="password"
+                            name="password"
+                            placeholder="Create a password"
+                            minlength="6"
+                            autocomplete="new-password"
+                            required
+                        >
+                        <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="password">◉</button>
+                    </div>
+                    <small class="password-hint">Use at least 6 characters.</small>
 
-                    <button class="primary-button auth-button" type="submit">
-                        Create Account <span>→</span>
-                    </button>
+                    <label for="confirm-password">Confirm password</label>
+                    <div class="auth-input-wrap">
+                        <span aria-hidden="true">♙</span>
+                        <input
+                            id="confirm-password"
+                            type="password"
+                            placeholder="Enter your password again"
+                            minlength="6"
+                            autocomplete="new-password"
+                            required
+                        >
+                        <button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false" data-password-toggle="confirm-password">◉</button>
+                    </div>
+
+                    <label class="terms-check">
+                        <input type="checkbox" required>
+                        <span>I agree to the terms and privacy policy.</span>
+                    </label>
+
+                    <button class="primary-button auth-button" type="submit">Create account</button>
                 </form>
 
                 <p class="auth-switch">
                     Already have an account?
-                    <a href="{{ url_for('login') }}">Sign in</a>
+                    <a href="{{ url_for('login') }}">Log in</a>
                 </p>
-                <p class="form-note">Start small. Stay consistent. Keep growing.</p>
             </div>
         </section>
     </main>
+    <script>
+        document.querySelectorAll("[data-password-toggle]").forEach(button => {
+            button.addEventListener("click", () => {
+                const input = document.getElementById(button.dataset.passwordToggle);
+                const showing = input.type === "password";
+                input.type = showing ? "text" : "password";
+                button.setAttribute("aria-pressed", String(showing));
+                button.setAttribute("aria-label", showing ? "Hide password" : "Show password");
+            });
+        });
+
+        const registerForm = document.querySelector(".register-form-wrap form");
+        registerForm.addEventListener("submit", event => {
+            const password = document.getElementById("password");
+            const confirmation = document.getElementById("confirm-password");
+            if (password.value !== confirmation.value) {
+                event.preventDefault();
+                confirmation.setCustomValidity("Passwords do not match.");
+                confirmation.reportValidity();
+                confirmation.addEventListener("input", () => {
+                    confirmation.setCustomValidity("");
+                }, { once: true });
+                confirmation.focus();
+            }
+        });
+    </script>
 </body>
 </html>
-

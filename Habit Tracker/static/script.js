@@ -7,12 +7,26 @@ document.addEventListener("DOMContentLoaded", () => {
     const emptyState = document.getElementById("empty-state");
     const message = document.getElementById("message");
     const addButton = document.getElementById("add-button");
+    const searchInput = document.getElementById("habit-search");
+    const panelToggle = document.querySelector(".panel-toggle");
+    const panelContent = document.getElementById("habit-panel-content");
+    const rangeTabs = document.querySelectorAll(".range-tab");
+    const navItems = document.querySelectorAll(".sidebar-nav .nav-item");
 
     const habitCount = document.getElementById("habit-count");
+    const completedCountElement = document.getElementById("completed-count");
+    const remainingCount = document.getElementById("remaining-count");
+    const notificationCount = document.getElementById("notification-count");
     const progressPercent = document.getElementById("progress-percent");
     const progressFill = document.getElementById("progress-fill");
     const progressNote = document.getElementById("progress-note");
     const todayDate = document.getElementById("today-date");
+    const currentStreak = document.getElementById("current-streak");
+    const longestStreak = document.getElementById("longest-streak");
+    const totalCompleted = document.getElementById("total-completed");
+    const chart = document.getElementById("progress-chart");
+    const chartBox = document.getElementById("chart-box");
+    const chartLabels = document.getElementById("chart-labels");
 
     const calendarMonth = document.getElementById("calendar-month");
     const calendarDays = document.getElementById("calendar-days");
@@ -22,8 +36,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let habits = [];
     let messageTimer;
+    let currentSearch = "";
+    let selectedRange = "week";
 
-    const now = new Date();
+    function getPhilippineToday() {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: "Asia/Manila",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric"
+        }).formatToParts(new Date());
+        const values = Object.fromEntries(
+            parts.map(part => [part.type, part.value])
+        );
+        return new Date(
+            Number(values.year),
+            Number(values.month) - 1,
+            Number(values.day)
+        );
+    }
+
+    const now = getPhilippineToday();
     let viewedYear = now.getFullYear();
     let viewedMonth = now.getMonth();
 
@@ -31,7 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
         todayDate.textContent = now.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
-            year: "numeric"
+            year: "numeric",
+            timeZone: "Asia/Manila"
         });
     }
 
@@ -90,6 +124,11 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderHabits() {
         if (!habitList) return;
 
+        const filteredHabits = habits.filter(habit => {
+            const haystack = `${habit.name} ${habit.category}`.toLowerCase();
+            return haystack.includes(currentSearch.toLowerCase());
+        });
+
         habitList.innerHTML = "";
 
         const completedCount = habits.filter(
@@ -97,12 +136,21 @@ document.addEventListener("DOMContentLoaded", () => {
         ).length;
 
         const totalCount = habits.length;
+        const remaining = totalCount - completedCount;
 
         const percent = totalCount === 0
             ? 0
             : Math.round((completedCount / totalCount) * 100);
 
         if (habitCount) habitCount.textContent = totalCount;
+        if (completedCountElement) {
+            completedCountElement.textContent = completedCount;
+        }
+        if (remainingCount) remainingCount.textContent = remaining;
+        if (notificationCount) {
+            notificationCount.textContent = remaining;
+            notificationCount.hidden = remaining === 0;
+        }
         if (progressPercent) progressPercent.textContent = `${percent}%`;
 
         if (progressFill) {
@@ -124,10 +172,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (emptyState) {
             emptyState.style.display =
-                totalCount === 0 ? "block" : "none";
+                filteredHabits.length === 0 && totalCount === 0 ? "block" : "none";
         }
 
-        habits.forEach(habit => {
+        if (filteredHabits.length === 0 && totalCount > 0) {
+            const noResults = document.createElement("div");
+            noResults.className = "empty-state compact-empty";
+            noResults.innerHTML = `
+                <div class="empty-icon">⌕</div>
+                <h3>No habits match your search</h3>
+                <p>Try another keyword or add a new habit.</p>
+            `;
+            habitList.appendChild(noResults);
+            return;
+        }
+
+        filteredHabits.forEach(habit => {
             const completed = Boolean(habit.completed);
 
             const card = document.createElement("article");
@@ -183,6 +243,96 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function renderChart(series) {
+        if (!chart || !chartBox || !chartLabels) return;
+
+        const width = 280;
+        const height = 120;
+        const left = 8;
+        const right = width - 8;
+        const bottom = height - 12;
+        const top = 12;
+        const maxValue = Math.max(1, ...series.map(point => point.value));
+        const points = series.map((point, index) => {
+            const x = series.length === 1
+                ? (left + right) / 2
+                : left + (index / (series.length - 1)) * (right - left);
+            const y = bottom - (point.value / maxValue) * (bottom - top);
+            return `${x},${y}`;
+        });
+
+        chart.replaceChildren();
+        [30, 60, 90].forEach(y => {
+            const line = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line"
+            );
+            line.setAttribute("x1", "0");
+            line.setAttribute("x2", String(width));
+            line.setAttribute("y1", String(y));
+            line.setAttribute("y2", String(y));
+            line.setAttribute("stroke", "#edf1f8");
+            line.setAttribute("stroke-width", "1");
+            chart.appendChild(line);
+        });
+
+        if (points.length > 0) {
+            const line = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "polyline"
+            );
+            line.setAttribute("points", points.join(" "));
+            line.setAttribute("fill", "none");
+            line.setAttribute("stroke", "var(--primary)");
+            line.setAttribute("stroke-width", "3");
+            line.setAttribute("stroke-linecap", "round");
+            line.setAttribute("stroke-linejoin", "round");
+            chart.appendChild(line);
+        }
+
+        const labelCount = Math.min(7, series.length);
+        chartLabels.replaceChildren();
+        chartLabels.style.gridTemplateColumns =
+            `repeat(${labelCount || 1}, minmax(0, 1fr))`;
+        for (let index = 0; index < labelCount; index++) {
+            const pointIndex = labelCount === 1
+                ? 0
+                : Math.round(index * (series.length - 1) / (labelCount - 1));
+            const label = document.createElement("span");
+            label.textContent = series[pointIndex].label;
+            chartLabels.appendChild(label);
+        }
+        chart.setAttribute(
+            "aria-label",
+            `${selectedRange} habit completions chart`
+        );
+        chartBox.setAttribute("aria-busy", "false");
+    }
+
+    async function renderAnalytics() {
+        if (!chart) return;
+
+        if (chartBox) chartBox.setAttribute("aria-busy", "true");
+        try {
+            const data = await apiRequest(
+                `/api/analytics?range=${selectedRange}`
+            );
+            if (currentStreak) {
+                currentStreak.textContent = `${data.current_streak} days`;
+            }
+            if (longestStreak) {
+                longestStreak.textContent = `${data.longest_streak} days`;
+            }
+            if (totalCompleted) {
+                totalCompleted.textContent = data.total_completed;
+            }
+            renderChart(data.series);
+        } catch (error) {
+            if (chartBox) chartBox.setAttribute("aria-busy", "false");
+            showMessage(error.message || "Unable to load progress.", "error");
+        }
+    }
+
     async function renderCalendar() {
         if (!calendarMonth || !calendarDays || !calendarNote) {
             return;
@@ -220,8 +370,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 0
             ).getDate();
 
-            // Calendar starts on Monday.
-            const offset = (firstDay.getDay() + 6) % 7;
+            const offset = firstDay.getDay();
 
             for (let i = 0; i < offset; i++) {
                 const blank = document.createElement("span");
@@ -230,7 +379,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 calendarDays.appendChild(blank);
             }
 
-            const today = new Date();
+            const today = getPhilippineToday();
             let daysWithCompletions = 0;
 
             for (let day = 1; day <= daysInMonth; day++) {
@@ -317,6 +466,47 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (searchInput) {
+        searchInput.addEventListener("input", event => {
+            currentSearch = event.target.value.trim();
+            renderHabits();
+        });
+    }
+
+    if (panelToggle) {
+        panelToggle.addEventListener("click", () => {
+            if (!panelContent) return;
+            const collapsed = !panelContent.hidden;
+            panelContent.hidden = collapsed;
+            panelToggle.setAttribute("aria-expanded", String(!collapsed));
+            panelToggle.setAttribute(
+                "aria-label",
+                collapsed ? "Expand habit panel" : "Collapse habit panel"
+            );
+            panelToggle.textContent = collapsed ? "⌄" : "^";
+        });
+    }
+
+    rangeTabs.forEach(tab => {
+        tab.addEventListener("click", () => {
+            rangeTabs.forEach(item => {
+                item.classList.remove("active");
+                item.setAttribute("aria-pressed", "false");
+            });
+            tab.classList.add("active");
+            tab.setAttribute("aria-pressed", "true");
+            selectedRange = tab.dataset.range || "week";
+            renderAnalytics();
+        });
+    });
+
+    navItems.forEach(item => {
+        item.addEventListener("click", () => {
+            navItems.forEach(navItem => navItem.classList.remove("active"));
+            item.classList.add("active");
+        });
+    });
+
     if (habitForm) {
         habitForm.addEventListener("submit", async event => {
             event.preventDefault();
@@ -348,7 +538,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 showMessage(error.message || "Could not add habit.", "error");
             } finally {
                 addButton.disabled = false;
-                addButton.textContent = "+ Add Habit";
+                addButton.textContent = "+ Add new";
             }
         });
     }
@@ -385,4 +575,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadHabits();
 });
-
