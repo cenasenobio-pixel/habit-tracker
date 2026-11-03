@@ -1768,22 +1768,15 @@ select:focus-visible {
         display: flex;
         margin: 0 0 28px;
     }
-}
-/* Cover sa kaliwang panel ng login at register */
-.auth-page .auth-visual {
+/* Background ng login, register, at dashboard */
+body.auth-page,
+body.dashboard-page {
     background: #f4eadf url("/static/images/habit-cover.jfif")
-                center / cover no-repeat;
-    min-height: 620px;
-    padding: 44px;
+                center / cover no-repeat fixed;
 }
 
-/* Itago ang dating text para hindi pumatong sa cover */
-.auth-page .auth-visual > * {
-    display: none;
-}
-
-@media (max-width: 760px) {
-    .auth-page .auth-visual {
-        display: none;
-    }
+/* Para makita ang background sa paligid ng dashboard */
+.dashboard-layout,
+.dashboard-main {
+    background: transparent;
 }
