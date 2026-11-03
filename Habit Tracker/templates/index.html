@@ -31,9 +31,9 @@
                     Habits
                 </a>
 
-                <a class="nav-item" href="#progress">
+                <a class="nav-item" href="#journey">
                     <span class="nav-symbol">◎</span>
-                    Goals
+                    Journey
                 </a>
 
                 <a class="nav-item" href="#analytics">
@@ -164,6 +164,19 @@
                             </div>
                         </form>
 
+                        <div class="habit-filter-row">
+                            <span id="habit-results" aria-live="polite">All habits</span>
+                            <select id="category-filter" aria-label="Filter habits by category">
+                                <option value="all">All categories</option>
+                                <option value="Personal">Personal</option>
+                                <option value="Health">Health</option>
+                                <option value="Study">Study</option>
+                                <option value="Fitness">Fitness</option>
+                                <option value="Mindfulness">Mindfulness</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+
                         <div id="habit-list" class="habit-list"></div>
 
                         <div id="empty-state" class="empty-state">
@@ -172,6 +185,62 @@
                             <p>Add your first habit above and begin building momentum.</p>
                         </div>
                     </div>
+
+                    <section class="weekly-panel" id="progress" aria-labelledby="weekly-title">
+                        <div class="weekly-panel-heading">
+                            <div>
+                                <span class="eyebrow blue-text">Keep your momentum</span>
+                                <h2 id="weekly-title">This week</h2>
+                            </div>
+                            <span class="weekly-badge">7-day view</span>
+                        </div>
+
+                        <div class="weekly-goal-card">
+                            <div class="weekly-goal-copy">
+                                <span class="weekly-goal-icon" aria-hidden="true">◎</span>
+                                <div>
+                                    <strong>Weekly completion goal</strong>
+                                    <p id="weekly-goal-note">Set a goal that feels achievable.</p>
+                                </div>
+                            </div>
+                            <form id="weekly-goal-form" class="weekly-goal-form">
+                                <label for="weekly-goal-input">Weekly completions</label>
+                                <input id="weekly-goal-input" type="number" min="1" max="200" value="20" required>
+                                <button class="goal-save-button" type="submit">Save goal</button>
+                            </form>
+                            <div class="weekly-goal-track" role="progressbar" aria-label="Weekly goal progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                                <span id="weekly-goal-fill"></span>
+                            </div>
+                            <div class="weekly-goal-foot">
+                                <span id="weekly-goal-progress">0 of 20 completions</span>
+                                <strong id="weekly-goal-percent">0%</strong>
+                            </div>
+                        </div>
+
+                        <div class="weekly-activity">
+                            <div class="weekly-activity-heading">
+                                <h3>Daily activity</h3>
+                                <span id="weekly-activity-total">0 completions</span>
+                            </div>
+                            <div id="weekly-bars" class="weekly-bars" aria-label="Habit completions over the last seven days"></div>
+                        </div>
+                    </section>
+
+                    <section class="journey-panel" id="journey" aria-labelledby="journey-title">
+                        <div class="journey-heading">
+                            <div>
+                                <span class="eyebrow blue-text">Small steps add up</span>
+                                <h2 id="journey-title">Your habit journey</h2>
+                            </div>
+                            <span class="journey-progress-count" id="journey-progress-count">0 / 4</span>
+                        </div>
+                        <div class="journey-progress-track" role="progressbar" aria-label="Journey milestones completed" aria-valuemin="0" aria-valuemax="4" aria-valuenow="0">
+                            <span id="journey-progress-fill"></span>
+                        </div>
+                        <p class="journey-summary" id="journey-summary">Start with one small habit. Your milestones will grow as you do.</p>
+                        <ol id="journey-milestones" class="journey-milestones"></ol>
+                        <button id="journey-action" class="journey-action" type="button">Start your journey <span aria-hidden="true">→</span></button>
+                    </section>
                 </section>
 
                 <aside class="side-column">
@@ -199,7 +268,7 @@
                     </section>
 
                     <section class="progress-panel" id="analytics">
-                        <div class="progress-header" id="progress">
+                        <div class="progress-header">
                             <h3>Habit Progress Over Time</h3>
                         </div>
 

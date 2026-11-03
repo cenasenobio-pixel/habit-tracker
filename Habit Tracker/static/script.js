@@ -12,6 +12,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const panelContent = document.getElementById("habit-panel-content");
     const rangeTabs = document.querySelectorAll(".range-tab");
     const navItems = document.querySelectorAll(".sidebar-nav .nav-item");
+    const categoryFilter = document.getElementById("category-filter");
+    const habitResults = document.getElementById("habit-results");
+    const weeklyGoalForm = document.getElementById("weekly-goal-form");
+    const weeklyGoalInput = document.getElementById("weekly-goal-input");
+    const weeklyGoalNote = document.getElementById("weekly-goal-note");
+    const weeklyGoalTrack = document.querySelector(".weekly-goal-track");
+    const weeklyGoalFill = document.getElementById("weekly-goal-fill");
+    const weeklyGoalProgress = document.getElementById("weekly-goal-progress");
+    const weeklyGoalPercent = document.getElementById("weekly-goal-percent");
+    const weeklyBars = document.getElementById("weekly-bars");
+    const weeklyActivityTotal = document.getElementById("weekly-activity-total");
+    const journeyProgressCount = document.getElementById("journey-progress-count");
+    const journeyProgressTrack = document.querySelector(".journey-progress-track");
+    const journeyProgressFill = document.getElementById("journey-progress-fill");
+    const journeySummary = document.getElementById("journey-summary");
+    const journeyMilestones = document.getElementById("journey-milestones");
+    const journeyAction = document.getElementById("journey-action");
 
     const habitCount = document.getElementById("habit-count");
     const completedCountElement = document.getElementById("completed-count");
@@ -38,6 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
     let messageTimer;
     let currentSearch = "";
     let selectedRange = "week";
+    let weeklyGoal = 20;
+    let weeklySeries = [];
+    let totalCompletedHabits = 0;
+    let longestRecordedStreak = 0;
 
     function getPhilippineToday() {
         const parts = new Intl.DateTimeFormat("en-US", {
@@ -115,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 : (data.habits || []);
 
             renderHabits();
-            await renderCalendar();
+            await Promise.all([renderCalendar(), renderAnalytics()]);
         } catch (error) {
             showMessage(error.message || "Unable to load habits.", "error");
         }
@@ -126,7 +147,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const filteredHabits = habits.filter(habit => {
             const haystack = `${habit.name} ${habit.category}`.toLowerCase();
-            return haystack.includes(currentSearch.toLowerCase());
+            const matchesSearch = haystack.includes(currentSearch.toLowerCase());
+            const matchesCategory =
+                !categoryFilter ||
+                categoryFilter.value === "all" ||
+                habit.category === categoryFilter.value;
+            return matchesSearch && matchesCategory;
         });
 
         habitList.innerHTML = "";
@@ -173,6 +199,14 @@ document.addEventListener("DOMContentLoaded", () => {
         if (emptyState) {
             emptyState.style.display =
                 filteredHabits.length === 0 && totalCount === 0 ? "block" : "none";
+        }
+
+        if (habitResults) {
+            const isFiltered = Boolean(currentSearch) ||
+                Boolean(categoryFilter && categoryFilter.value !== "all");
+            habitResults.textContent = isFiltered
+                ? `Showing ${filteredHabits.length} of ${totalCount} habits`
+                : `${totalCount} ${totalCount === 1 ? "habit" : "habits"}`;
         }
 
         if (filteredHabits.length === 0 && totalCount > 0) {
@@ -326,10 +360,181 @@ document.addEventListener("DOMContentLoaded", () => {
             if (totalCompleted) {
                 totalCompleted.textContent = data.total_completed;
             }
+            totalCompletedHabits = data.total_completed;
+            longestRecordedStreak = data.longest_streak;
+            if (selectedRange === "week") {
+                weeklySeries = data.series;
+                renderWeeklyActivity();
+            }
+            renderJourney();
             renderChart(data.series);
         } catch (error) {
             if (chartBox) chartBox.setAttribute("aria-busy", "false");
             showMessage(error.message || "Unable to load progress.", "error");
+        }
+    }
+
+    function renderWeeklyActivity() {
+        if (!weeklyBars || !weeklyActivityTotal) return;
+
+        const total = weeklySeries.reduce(
+            (sum, point) => sum + Number(point.value || 0), 0
+        );
+        const maxValue = Math.max(1, ...weeklySeries.map(point => point.value));
+        weeklyBars.replaceChildren();
+
+        weeklySeries.forEach((point, index) => {
+            const day = document.createElement("div");
+            day.className = `weekly-day${index === weeklySeries.length - 1 ? " is-today" : ""}`;
+            day.setAttribute(
+                "aria-label",
+                `${point.label}: ${point.value} completed habits${index === weeklySeries.length - 1 ? ", today" : ""}`
+            );
+
+            const value = document.createElement("span");
+            value.className = "weekly-bar-value";
+            value.textContent = point.value;
+
+            const track = document.createElement("div");
+            track.className = "weekly-bar-track";
+            const bar = document.createElement("span");
+            const height = point.value > 0
+                ? Math.max(12, (point.value / maxValue) * 100)
+                : 4;
+            bar.style.height = `${height}%`;
+            track.appendChild(bar);
+
+            const label = document.createElement("span");
+            label.className = "weekly-day-label";
+            label.textContent = point.label;
+
+            day.append(value, track, label);
+            weeklyBars.appendChild(day);
+        });
+
+        weeklyActivityTotal.textContent =
+            `${total} ${total === 1 ? "completion" : "completions"}`;
+        updateWeeklyGoalDisplay(total);
+    }
+
+    function updateWeeklyGoalDisplay(completed = null) {
+        const total = completed === null
+            ? weeklySeries.reduce((sum, point) => sum + Number(point.value || 0), 0)
+            : completed;
+        const percent = Math.min(100, Math.round((total / weeklyGoal) * 100));
+
+        if (weeklyGoalInput) weeklyGoalInput.value = weeklyGoal;
+        if (weeklyGoalNote) {
+            weeklyGoalNote.textContent = total >= weeklyGoal
+                ? "Goal reached — you're building a great rhythm!"
+                : `${weeklyGoal - total} more to reach your weekly goal.`;
+        }
+        if (weeklyGoalFill) weeklyGoalFill.style.width = `${percent}%`;
+        if (weeklyGoalTrack) {
+            weeklyGoalTrack.setAttribute("aria-valuenow", String(percent));
+        }
+        if (weeklyGoalProgress) {
+            weeklyGoalProgress.textContent = `${total} of ${weeklyGoal} completions`;
+        }
+        if (weeklyGoalPercent) weeklyGoalPercent.textContent = `${percent}%`;
+        renderJourney();
+    }
+
+    function renderJourney() {
+        if (!journeyMilestones) return;
+
+        const weeklyCompletions = weeklySeries.reduce(
+            (sum, point) => sum + Number(point.value || 0), 0
+        );
+        const milestones = [
+            {
+                title: "Choose your first habit",
+                detail: "Pick one small action to start your routine.",
+                complete: habits.length > 0,
+                icon: "✦"
+            },
+            {
+                title: "Celebrate your first check-in",
+                detail: "Mark a habit complete to record your first win.",
+                complete: totalCompletedHabits > 0,
+                icon: "✓"
+            },
+            {
+                title: "Build a 7-day streak",
+                detail: "Show up at least once each day for a week.",
+                complete: longestRecordedStreak >= 7,
+                icon: "↗"
+            },
+            {
+                title: "Reach your weekly goal",
+                detail: `Complete ${weeklyGoal} habits in the last seven days.`,
+                complete: weeklyCompletions >= weeklyGoal,
+                icon: "◎"
+            }
+        ];
+        const completedMilestones = milestones.filter(
+            milestone => milestone.complete
+        ).length;
+
+        journeyMilestones.replaceChildren();
+        milestones.forEach(milestone => {
+            const item = document.createElement("li");
+            item.className = `journey-milestone${milestone.complete ? " complete" : ""}`;
+
+            const marker = document.createElement("span");
+            marker.className = "journey-marker";
+            marker.textContent = milestone.complete ? "✓" : milestone.icon;
+            marker.setAttribute("aria-hidden", "true");
+
+            const copy = document.createElement("span");
+            copy.className = "journey-milestone-copy";
+            const title = document.createElement("strong");
+            title.textContent = milestone.title;
+            const detail = document.createElement("small");
+            detail.textContent = milestone.detail;
+            copy.append(title, detail);
+
+            const status = document.createElement("span");
+            status.className = "journey-status";
+            status.textContent = milestone.complete ? "Done" : "Next";
+            item.append(marker, copy, status);
+            journeyMilestones.appendChild(item);
+        });
+
+        if (journeyProgressCount) {
+            journeyProgressCount.textContent = `${completedMilestones} / ${milestones.length}`;
+        }
+        if (journeyProgressFill) {
+            journeyProgressFill.style.width =
+                `${(completedMilestones / milestones.length) * 100}%`;
+        }
+        if (journeyProgressTrack) {
+            journeyProgressTrack.setAttribute(
+                "aria-valuenow",
+                String(completedMilestones)
+            );
+        }
+        if (journeySummary) {
+            journeySummary.textContent = completedMilestones === milestones.length
+                ? "You reached every milestone. Keep your momentum going!"
+                : `${completedMilestones} of ${milestones.length} milestones complete. Keep taking it one day at a time.`;
+        }
+        if (journeyAction) {
+            journeyAction.innerHTML = completedMilestones === milestones.length
+                ? "Keep it going <span aria-hidden=\"true\">→</span>"
+                : habits.length === 0
+                    ? "Start your journey <span aria-hidden=\"true\">→</span>"
+                    : "Add another habit <span aria-hidden=\"true\">→</span>";
+        }
+    }
+
+    async function loadWeeklyGoal() {
+        try {
+            const data = await apiRequest("/api/weekly-goal");
+            weeklyGoal = data.weekly_goal;
+            updateWeeklyGoalDisplay();
+        } catch (error) {
+            showMessage(error.message || "Unable to load weekly goal.", "error");
         }
     }
 
@@ -473,6 +678,17 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    if (categoryFilter) {
+        categoryFilter.addEventListener("change", renderHabits);
+    }
+
+    if (journeyAction) {
+        journeyAction.addEventListener("click", () => {
+            habitName?.focus();
+            habitName?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+    }
+
     if (panelToggle) {
         panelToggle.addEventListener("click", () => {
             if (!panelContent) return;
@@ -506,6 +722,34 @@ document.addEventListener("DOMContentLoaded", () => {
             item.classList.add("active");
         });
     });
+
+    if (weeklyGoalForm) {
+        weeklyGoalForm.addEventListener("submit", async event => {
+            event.preventDefault();
+            const nextGoal = Number(weeklyGoalInput.value);
+            if (!Number.isInteger(nextGoal) || nextGoal < 1 || nextGoal > 200) {
+                showMessage("Choose a weekly goal between 1 and 200.", "error");
+                weeklyGoalInput.focus();
+                return;
+            }
+
+            const saveButton = weeklyGoalForm.querySelector("button");
+            saveButton.disabled = true;
+            try {
+                const data = await apiRequest("/api/weekly-goal", {
+                    method: "PUT",
+                    body: JSON.stringify({ weekly_goal: nextGoal })
+                });
+                weeklyGoal = data.weekly_goal;
+                updateWeeklyGoalDisplay();
+                showMessage("Weekly goal saved!");
+            } catch (error) {
+                showMessage(error.message || "Could not save weekly goal.", "error");
+            } finally {
+                saveButton.disabled = false;
+            }
+        });
+    }
 
     if (habitForm) {
         habitForm.addEventListener("submit", async event => {
@@ -574,4 +818,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     loadHabits();
+    loadWeeklyGoal();
 });
