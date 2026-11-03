@@ -1,14 +1,13 @@
 
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from functools import wraps
 import sqlite3
-import os
 
 app = Flask(__name__)
-app.secret_key = os.environ["SECRET_KEY"]
+app.secret_key = "habitflow-local-secret-key-change-this"
 
 # Database file is saved beside main.py
 DATABASE = Path(__file__).resolve().parent / "habits.db"
@@ -56,6 +55,14 @@ def init_db():
             user_id INTEGER NOT NULL,
             completion_date TEXT NOT NULL,
             UNIQUE (habit_id, completion_date)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_settings (
+            user_id INTEGER PRIMARY KEY,
+            weekly_goal INTEGER NOT NULL DEFAULT 20
+                CHECK (weekly_goal BETWEEN 1 AND 200)
         )
     """)
 
@@ -332,8 +339,188 @@ def get_calendar():
     })
 
 
+@app.route("/api/analytics", methods=["GET"])
+@login_required
+def get_analytics():
+    selected_range = request.args.get("range", "week")
+    if selected_range not in {"all", "week", "month", "year"}:
+        return jsonify({"error": "Choose all, week, month, or year."}), 400
+
+    today = datetime.now(PH_TIMEZONE).date()
+    user_id = session["user_id"]
+    conn = get_db()
+
+    totals = conn.execute("""
+        SELECT completion_date, COUNT(*) AS completed_count
+        FROM habit_completions
+        WHERE user_id = ?
+        GROUP BY completion_date
+        ORDER BY completion_date
+    """, (user_id,)).fetchall()
+
+    if selected_range == "week":
+        start = today - timedelta(days=6)
+        rows = conn.execute("""
+            SELECT completion_date, COUNT(*) AS completed_count
+            FROM habit_completions
+            WHERE user_id = ? AND completion_date >= ? AND completion_date <= ?
+            GROUP BY completion_date
+        """, (user_id, start.isoformat(), today.isoformat())).fetchall()
+        values_by_date = {
+            row["completion_date"]: row["completed_count"] for row in rows
+        }
+        series = [
+            {
+                "label": (start + timedelta(days=offset)).strftime("%a"),
+                "value": values_by_date.get(
+                    (start + timedelta(days=offset)).isoformat(), 0
+                )
+            }
+            for offset in range(7)
+        ]
+    elif selected_range == "month":
+        start = today.replace(day=1)
+        values_by_date = {
+            row["completion_date"]: row["completed_count"]
+            for row in conn.execute("""
+                SELECT completion_date, COUNT(*) AS completed_count
+                FROM habit_completions
+                WHERE user_id = ? AND completion_date >= ? AND completion_date <= ?
+                GROUP BY completion_date
+            """, (user_id, start.isoformat(), today.isoformat())).fetchall()
+        }
+        series = [
+            {
+                "label": str(day),
+                "value": values_by_date.get(
+                    date(today.year, today.month, day).isoformat(), 0
+                )
+            }
+            for day in range(1, today.day + 1)
+        ]
+    elif selected_range == "year":
+        start = today.replace(month=1, day=1)
+        values_by_month = {
+            row["completion_date"][:7]: row["completed_count"]
+            for row in conn.execute("""
+                SELECT substr(completion_date, 1, 7) AS completion_date,
+                       COUNT(*) AS completed_count
+                FROM habit_completions
+                WHERE user_id = ? AND completion_date >= ? AND completion_date <= ?
+                GROUP BY substr(completion_date, 1, 7)
+            """, (user_id, start.isoformat(), today.isoformat())).fetchall()
+        }
+        series = [
+            {
+                "label": date(today.year, month, 1).strftime("%b"),
+                "value": values_by_month.get(
+                    f"{today.year}-{month:02d}", 0
+                )
+            }
+            for month in range(1, today.month + 1)
+        ]
+    else:
+        month_counts = {}
+        for row in totals:
+            month_key = row["completion_date"][:7]
+            month_counts[month_key] = (
+                month_counts.get(month_key, 0) + row["completed_count"]
+            )
+
+        if month_counts:
+            first_month = date.fromisoformat(
+                f"{min(month_counts)}-01"
+            )
+        else:
+            first_month = today.replace(day=1)
+
+        series = []
+        current_month = first_month
+        while current_month <= today.replace(day=1):
+            month_key = current_month.strftime("%Y-%m")
+            series.append({
+                "label": current_month.strftime("%b %y"),
+                "value": month_counts.get(month_key, 0)
+            })
+            if current_month.month == 12:
+                current_month = current_month.replace(
+                    year=current_month.year + 1, month=1
+                )
+            else:
+                current_month = current_month.replace(
+                    month=current_month.month + 1
+                )
+
+    conn.close()
+
+    completed_dates = {
+        date.fromisoformat(row["completion_date"])
+        for row in totals
+    }
+    total_completed = sum(row["completed_count"] for row in totals)
+
+    streak_end = today
+    if streak_end not in completed_dates:
+        streak_end -= timedelta(days=1)
+    current_streak = 0
+    while streak_end in completed_dates:
+        current_streak += 1
+        streak_end -= timedelta(days=1)
+
+    longest_streak = 0
+    streak = 0
+    previous_date = None
+    for completed_date in sorted(completed_dates):
+        if previous_date and completed_date == previous_date + timedelta(days=1):
+            streak += 1
+        else:
+            streak = 1
+        longest_streak = max(longest_streak, streak)
+        previous_date = completed_date
+
+    return jsonify({
+        "range": selected_range,
+        "series": series,
+        "current_streak": current_streak,
+        "longest_streak": longest_streak,
+        "total_completed": total_completed
+    })
+
+
+@app.route("/api/weekly-goal", methods=["GET", "PUT"])
+@login_required
+def weekly_goal():
+    user_id = session["user_id"]
+    conn = get_db()
+
+    if request.method == "PUT":
+        data = request.get_json(silent=True) or {}
+        goal = data.get("weekly_goal")
+        if isinstance(goal, bool) or not isinstance(goal, int) or not 1 <= goal <= 200:
+            conn.close()
+            return jsonify({
+                "error": "Weekly goal must be a whole number between 1 and 200."
+            }), 400
+
+        conn.execute("""
+            INSERT INTO user_settings (user_id, weekly_goal)
+            VALUES (?, ?)
+            ON CONFLICT(user_id)
+            DO UPDATE SET weekly_goal = excluded.weekly_goal
+        """, (user_id, goal))
+        conn.commit()
+    else:
+        row = conn.execute(
+            "SELECT weekly_goal FROM user_settings WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+        goal = row["weekly_goal"] if row else 20
+
+    conn.close()
+    return jsonify({"weekly_goal": goal})
+
+
 init_db()
 
 if __name__ == "__main__":
     app.run(debug=True)
-
