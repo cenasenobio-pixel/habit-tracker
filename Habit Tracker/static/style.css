@@ -1769,3 +1769,21 @@ select:focus-visible {
         margin: 0 0 28px;
     }
 }
+/* Cover sa kaliwang panel ng login at register */
+.auth-page .auth-visual {
+    background: #f4eadf url("/static/images/habit-cover.jfif")
+                center / cover no-repeat;
+    min-height: 620px;
+    padding: 44px;
+}
+
+/* Itago ang dating text para hindi pumatong sa cover */
+.auth-page .auth-visual > * {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .auth-page .auth-visual {
+        display: none;
+    }
+}
